@@ -1,0 +1,86 @@
+services:
+  # ── PostgreSQL ────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: autodefend_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: autodefenddb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: autodefend_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── FastAPI Backend ───────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: autodefend_api
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/autodefenddb
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app          # hot-reload in dev
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      uv run uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+
+  # ── Celery Worker (parallel executor agents) ──────────────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: autodefend_worker
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/autodefenddb
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      uv run celery -A app.worker worker
+      --loglevel=info
+      --concurrency=4
+
+volumes:
+  postgres_data:
