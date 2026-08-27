@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
 
     # ── Database ────────────────────────────────────────────
-    database_url: str = "postgresql://postgres:password@localhost:5432/autodefenddb"
+    database_url: str = "sqlite:///./data/autodefend.db"
 
     # ── Redis ───────────────────────────────────────────────
     redis_url: str = "redis://localhost:6379/0"
