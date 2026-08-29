@@ -122,23 +122,12 @@ FRAUD_CLASS_CODES = {"VISA_10_4", "MC_4863", "UPI_RC1"}
 async def _llm_classify_unknown_code(reason_code: str) -> dict:
     """
     Called only when reason_code is NOT in REASON_CODE_KB.
-    Uses the LLM to infer a strategy from the code string.
+    Uses OpenAI (preferred, if key set) or Gemini fallback.
     Returns a strategy dict in the same format as REASON_CODE_KB entries.
     """
     logger.warning("Unknown reason code '%s' — falling back to LLM classification", reason_code)
 
-    try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        from langchain_core.messages import HumanMessage
-        import json
-
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
-            google_api_key=settings.google_api_key,
-            temperature=0,
-        )
-
-        prompt = f"""You are a payment dispute expert. Given the reason code "{reason_code}", 
+    prompt = f"""You are a payment dispute expert. Given the reason code "{reason_code}", 
 determine the dispute classification.
 
 Reply with ONLY valid JSON in this exact format:
@@ -153,6 +142,30 @@ Reply with ONLY valid JSON in this exact format:
 
 Be conservative with base_confidence for unknown codes."""
 
+    try:
+        import json
+
+        # Prefer OpenAI if key is available
+        if settings.openai_api_key:
+            from langchain_openai import ChatOpenAI
+            from langchain_core.messages import HumanMessage
+            llm = ChatOpenAI(
+                model="gpt-4o-mini",
+                api_key=settings.openai_api_key,
+                temperature=0,
+            )
+        elif settings.google_api_key:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            from langchain_core.messages import HumanMessage
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                google_api_key=settings.google_api_key,
+                temperature=0,
+            )
+        else:
+            raise ValueError("No LLM API key configured")
+
+        from langchain_core.messages import HumanMessage
         response = await llm.ainvoke([HumanMessage(content=prompt)])
         raw = response.content.strip().strip("```json").strip("```").strip()
         strategy = json.loads(raw)
@@ -162,7 +175,6 @@ Be conservative with base_confidence for unknown codes."""
 
     except Exception as exc:
         logger.error("LLM fallback failed for code '%s': %s — using safe default", reason_code, exc)
-        # Ultra-safe default: run all executors, low confidence → likely RECOMMEND_ACCEPT
         return {
             "dispute_class":     "unknown",
             "description":       f"Unknown reason code: {reason_code}",
@@ -173,6 +185,7 @@ Be conservative with base_confidence for unknown codes."""
             "llm_classified":    False,
             "fallback":          True,
         }
+
 
 
 # ── Classifier Agent (LangGraph node) ────────────────────────────────────────

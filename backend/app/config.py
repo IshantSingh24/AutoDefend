@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # ── LLM ────────────────────────────────────────────────
     google_api_key: str = ""
     openai_api_key: str = ""
+    groq_api_key: str = ""
 
     # ── Database ────────────────────────────────────────────
     database_url: str = "sqlite:///./data/autodefend.db"

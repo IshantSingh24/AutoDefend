@@ -52,6 +52,7 @@ venv.bak/
 # Environment & Secrets - NEVER COMMIT
 # ============================================================
 backend/.env
+backend/.env.example
 .env.local
 .env.*.local
 *.pem

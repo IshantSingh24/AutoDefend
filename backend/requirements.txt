@@ -11,7 +11,7 @@ python-dotenv>=1.0.1
 langgraph>=0.1.9
 langchain-core>=0.2.19
 langchain-google-genai>=1.0.5
-# langchain-openai>=0.1.0  # Uncomment if using OpenAI
+langchain-openai>=1.0.0
 
 # ── Task queue (parallel executor dispatch) ───────────────
 celery>=5.4.0
