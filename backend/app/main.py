@@ -5,6 +5,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.db.init_db import init_db
+from app.api.webhooks import router as webhook_router
 
 settings = get_settings()
 
@@ -24,6 +26,8 @@ async def lifespan(app: FastAPI):
         settings.auto_defend_confidence_threshold,
         settings.use_mock_apis,
     )
+    # Create DB tables on startup (idempotent)
+    init_db()
     yield
     logger.info("AutoDefend shutting down")
 
@@ -49,11 +53,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Routers ────────────────────────────────────────────────
+app.include_router(webhook_router, prefix="/webhook", tags=["Webhooks"])
 
-# ── Routers (added as each step is built) ──────────────────
-# from app.api.webhooks import router as webhook_router   # Step 3
-# from app.api.dashboard import router as dashboard_router # Step 11
-# app.include_router(webhook_router, prefix="/webhook", tags=["Webhooks"])
+# Future routers (added as steps complete):
+# from app.api.dashboard import router as dashboard_router
 # app.include_router(dashboard_router, prefix="/api", tags=["Dashboard"])
 
 
@@ -61,8 +65,8 @@ app.add_middleware(
 async def health_check():
     """Liveness probe — confirms the service is running."""
     return {
-        "status": "ok",
-        "version": app.version,
-        "env": settings.app_env,
+        "status":    "ok",
+        "version":   app.version,
+        "env":       settings.app_env,
         "mock_mode": settings.use_mock_apis,
     }
