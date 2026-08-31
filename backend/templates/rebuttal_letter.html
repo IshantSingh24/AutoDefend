@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Chargeback Rebuttal - {{ dispute_id }}</title>
+<style>
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1a1a1a; line-height: 1.6; margin: 40px; }
+  h1 { text-align: center; font-size: 16pt; color: #0f2b46; border-bottom: 2px solid #0f2b46; padding-bottom: 10px; }
+  h2 { font-size: 12pt; color: #0f2b46; margin-top: 24px; border-left: 4px solid #0f2b46; padding-left: 8px; }
+  .header-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  .header-table td { padding: 6px 10px; border: 1px solid #ddd; font-size: 9pt; }
+  .header-table td.label { background: #f4f6f9; font-weight: bold; width: 160px; }
+  .exhibit { background: #fafbfc; border: 1px solid #e1e6eb; padding: 14px; margin: 12px 0; border-radius: 4px; }
+  .footer { margin-top: 30px; font-size: 8pt; color: #666; border-top: 1px solid #ddd; padding-top: 10px; text-align: center; }
+  .conclusion { margin-top: 20px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>CHARGEBACK REBUTTAL LETTER</h1>
+
+<table class="header-table">
+  <tr><td class="label">Dispute Reference</td><td>{{ dispute_id }}</td></tr>
+  <tr><td class="label">Payment ID</td><td>{{ payment_id }}</td></tr>
+  <tr><td class="label">Merchant ID</td><td>{{ merchant_id }}</td></tr>
+  <tr><td class="label">Reason Code</td><td>{{ reason_code }}</td></tr>
+  <tr><td class="label">Disputed Amount</td><td>Rs. {{ "%.2f"|format(amount_paise / 100) }} ({{ amount_paise }} paise)</td></tr>
+  <tr><td class="label">Date Generated</td><td>{{ generated_at }}</td></tr>
+</table>
+
+<p>To the Dispute Review Team,</p>
+<p>We respectfully submit this evidence packet in response to dispute <strong>{{ dispute_id }}</strong> for payment <strong>{{ payment_id }}</strong> classified as <strong>{{ reason_code }}</strong>. Each exhibit below directly addresses the evidence requirements for this reason code and contains only verified data retrieved from our systems.</p>
+
+<!-- SECTION 1: DELIVERY PROOF - only if logistics.status == DELIVERED -->
+{% if evidence.logistics and evidence.logistics.status == "DELIVERED" %}
+<div class="exhibit">
+  <h2>EXHIBIT A: PROOF OF DELIVERY</h2>
+  <p>Transaction <strong>{{ payment_id }}</strong> was successfully fulfilled and delivered.</p>
+  {% if evidence.logistics.delivery_date %}
+  <p><strong>Delivery Date:</strong> {{ evidence.logistics.delivery_date }}{% if evidence.logistics.delivery_time %} at {{ evidence.logistics.delivery_time }}{% endif %}</p>
+  {% endif %}
+  {% if evidence.logistics.provider %}
+  <p><strong>Delivery Provider:</strong> {{ evidence.logistics.provider }}</p>
+  {% endif %}
+  {% if evidence.logistics.tracking_id %}
+  <p><strong>Tracking ID:</strong> {{ evidence.logistics.tracking_id }}</p>
+  {% endif %}
+  {% if evidence.logistics.signature_available and evidence.logistics.recipient_name %}
+  <p><strong>Recipient Acknowledgment on File:</strong> {{ evidence.logistics.recipient_name }} (signature captured)</p>
+  {% elif evidence.logistics.signature_available %}
+  <p><strong>Recipient Signature:</strong> Available on file with delivery provider.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- SECTION 2: 3DS AUTHENTICATION - only if 3ds_passed == True -->
+{% if evidence.security and evidence.security.three_ds_passed %}
+<div class="exhibit">
+  <h2>EXHIBIT B: TRANSACTION AUTHENTICATION (3D Secure)</h2>
+  <p>This transaction completed <strong>3D Secure (3DS) authentication</strong>, indicating the cardholder was verified at checkout.</p>
+  {% if evidence.security.three_ds_reference %}
+  <p><strong>Authentication Reference:</strong> {{ evidence.security.three_ds_reference }}</p>
+  {% endif %}
+  {% if evidence.security.device_fingerprint %}
+  <p><strong>Device Fingerprint:</strong> {{ evidence.security.device_fingerprint }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- SECTION 3: PAYMENT VERIFICATION - only if CVV or AVS passed -->
+{% if evidence.security and (evidence.security.cvv_match or evidence.security.avs_result == "Y") %}
+<div class="exhibit">
+  <h2>EXHIBIT C: PAYMENT INSTRUMENT VERIFICATION</h2>
+  {% if evidence.security.cvv_match is not none %}
+  <p><strong>CVV Verification:</strong> {{ "PASSED" if evidence.security.cvv_match else "FAILED" }}</p>
+  {% endif %}
+  {% if evidence.security.avs_result %}
+  <p><strong>Address Verification (AVS):</strong> {{ evidence.security.avs_result }}{% if evidence.security.avs_result == "Y" %} — Billing address verified{% elif evidence.security.avs_result == "N" %} — No match{% endif %}</p>
+  {% endif %}
+  {% if evidence.security.billing_address_match is not none %}
+  <p><strong>IP / Billing Address Match:</strong> {{ "CONSISTENT — Checkout IP geolocation matches billing region" if evidence.security.billing_address_match else "NOT CONSISTENT" }}</p>
+  {% endif %}
+  {% if evidence.security.checkout_ip %}
+  <p><strong>Checkout IP:</strong> {{ evidence.security.checkout_ip }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- SECTION 4: CRM / ORDER HISTORY - only if order history exists -->
+{% if evidence.crm and evidence.crm.customer_order_count is not none %}
+<div class="exhibit">
+  <h2>EXHIBIT D: CUSTOMER ORDER HISTORY</h2>
+  <p><strong>Customer Order Count:</strong> {{ evidence.crm.customer_order_count }}</p>
+  {% if evidence.crm.customer_since_days is not none %}
+  <p><strong>Customer Since:</strong> {{ evidence.crm.customer_since_days }} days</p>
+  {% endif %}
+  {% if evidence.crm.delivery_success_rate is not none %}
+  <p><strong>Delivery Success Rate:</strong> {{ "%.0f"|format(evidence.crm.delivery_success_rate * 100) }}%</p>
+  {% endif %}
+  {% if evidence.crm.prior_disputes is not none %}
+  <p><strong>Prior Disputes:</strong> {{ evidence.crm.prior_disputes }}</p>
+  {% endif %}
+  {% if evidence.crm.customer_avg_order_paise is not none %}
+  <p><strong>Average Order Value:</strong> Rs. {{ "%.2f"|format(evidence.crm.customer_avg_order_paise / 100) }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="conclusion">
+  <h2>CONCLUSION</h2>
+  <p>Based on the verified evidence attached, we respectfully request that this chargeback be reversed in the merchant's favour. All statements above are supported by system-generated evidence; no fields have been hallucinated. Evidence was gathered directly from logistics, payment authentication, and CRM systems.</p>
+  <p><strong>Merchant:</strong> {{ merchant_id }} &nbsp;|&nbsp; <strong>Dispute:</strong> {{ dispute_id }} &nbsp;|&nbsp; <strong>Generated:</strong> {{ generated_at }}</p>
+</div>
+
+<div class="footer">
+  AutoDefend — Autonomous Chargeback Defense Assembler | Razorpay Hackathon 2026 | This document was auto-generated and contains only verified evidence fields.
+</div>
+
+</body>
+</html>
