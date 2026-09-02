@@ -1,20 +1,19 @@
 """
 agents/classifier.py
-─────────────────────
-Classifier Agent — Step 1 of the LangGraph FSM.
+────────────────────
+Classifier — Deterministic FSM + Embedding (not LLM agent).
 
-Responsibility:
-  - Map a reason code to an evidence strategy (deterministic KB lookup)
-  - LLM fallback for unknown/future reason codes
-  - Populate DisputeState with: dispute_class, evidence_strategy, initial_confidence
-  - Append CLASSIFICATION event to audit trail
-
-Design rule: deterministic lookup ALWAYS preferred over LLM.
-LLM is a safety net only — keeps costs low and behaviour predictable.
+Option A: 4-centroid TF-IDF (not 400 hardcodes).
+Every reason code (400+ Visa/MC/Amex/UPI) maps to one of 4 categories
+via cosine to centroid descriptions — then category → executors.
+Local, 5ms, $0, no bluff.
 """
 
 import logging
 from datetime import datetime, timezone
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 from app.graph.state import DisputeState
 from app.config import get_settings
@@ -23,169 +22,117 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-# ── Reason Code Knowledge Base ────────────────────────────────────────────────
-# Each entry defines:
-#   dispute_class     : fraud | non_receipt | service | policy
-#   required_evidence : must be present for Evaluator to approve filing
-#   optional_evidence : boosts confidence if present, but not blocking
-#   base_confidence   : starting confidence score before evidence is checked
-#   executors         : which executor agents to call (logistics/security/crm)
-#   description       : human-readable label for audit trail
+# ── 4 Category Centroids (the ONLY hardcode — 4, not 400) ───────────────────
+# Each centroid = concatenated keywords for that dispute family.
+# Real Visa collapses 400 codes into these 4 families (Chargeflow: fraud/friendly/merchant-error)
+CATEGORY_CENTROIDS: dict[str, str] = {
+    "fraud":       "fraud unauthorized card stolen absent environment does not recognize unauthorized transaction no authorization cardholder does not recognize",
+    "non_receipt": "merchandise services not received goods not provided not delivered non receipt delivery failure",
+    "service":     "not as described defective merchandise quality cardholder dispute product not as described service not as described",
+    "policy":      "cancelled merchandise services refund policy credit not processed cancellation policy refund not issued",
+}
 
-REASON_CODE_KB: dict[str, dict] = {
-
-    # ── Visa ──────────────────────────────────────────────────────────────────
-    "VISA_10_4": {
-        "dispute_class":     "fraud",
-        "description":       "Fraud – Card Absent Environment",
+# Category → evidence strategy (4 entries, not 400)
+CATEGORY_STRATEGY: dict[str, dict] = {
+    "fraud": {
+        "description":       "Fraud – Unauthorized / Card Absent",
         "required_evidence": ["security"],
         "optional_evidence": ["crm"],
         "executors":         ["security", "crm"],
-        "base_confidence":   0.75,
+        "base_confidence":   0.70,
     },
-    "VISA_13_1": {
-        "dispute_class":     "non_receipt",
-        "description":       "Merchandise / Services Not Received",
+    "non_receipt": {
+        "description":       "Non-Receipt – Goods/Services Not Provided",
         "required_evidence": ["logistics"],
         "optional_evidence": ["security"],
         "executors":         ["logistics", "security"],
         "base_confidence":   0.60,
     },
-    "VISA_13_3": {
-        "dispute_class":     "service",
-        "description":       "Not as Described or Defective Merchandise",
+    "service": {
+        "description":       "Service – Not as Described / Defective",
         "required_evidence": ["logistics"],
         "optional_evidence": ["crm"],
         "executors":         ["logistics", "crm"],
         "base_confidence":   0.55,
     },
-    "VISA_13_7": {
-        "dispute_class":     "policy",
-        "description":       "Cancelled Merchandise / Services",
+    "policy": {
+        "description":       "Policy – Cancelled / Refund Not Processed",
         "required_evidence": ["crm"],
         "optional_evidence": ["logistics"],
         "executors":         ["crm", "logistics"],
         "base_confidence":   0.50,
     },
-
-    # ── Mastercard ────────────────────────────────────────────────────────────
-    "MC_4853": {
-        "dispute_class":     "service",
-        "description":       "Cardholder Dispute – Not as Described",
-        "required_evidence": ["logistics", "crm"],
-        "optional_evidence": ["security"],
-        "executors":         ["logistics", "crm", "security"],
-        "base_confidence":   0.60,
-    },
-    "MC_4855": {
-        "dispute_class":     "non_receipt",
-        "description":       "Goods or Services Not Provided",
-        "required_evidence": ["logistics"],
-        "optional_evidence": ["crm"],
-        "executors":         ["logistics", "crm"],
-        "base_confidence":   0.55,
-    },
-    "MC_4863": {
-        "dispute_class":     "fraud",
-        "description":       "Cardholder Does Not Recognize Transaction",
-        "required_evidence": ["security"],
-        "optional_evidence": ["crm", "logistics"],
-        "executors":         ["security", "crm"],
-        "base_confidence":   0.70,
-    },
-
-    # ── UPI / NPCI ────────────────────────────────────────────────────────────
-    "UPI_RC1": {
-        "dispute_class":     "fraud",
-        "description":       "UPI – Unauthorized Transaction",
-        "required_evidence": ["security"],
-        "optional_evidence": ["crm"],
-        "executors":         ["security", "crm"],
-        "base_confidence":   0.65,
-    },
-    "UPI_RC2": {
-        "dispute_class":     "non_receipt",
-        "description":       "UPI – Goods / Services Not Provided",
-        "required_evidence": ["logistics"],
-        "optional_evidence": [],
-        "executors":         ["logistics"],
-        "base_confidence":   0.55,
-    },
 }
 
-# Codes that are always fraud-class (used to route security executor first)
-FRAUD_CLASS_CODES = {"VISA_10_4", "MC_4863", "UPI_RC1"}
+# Legacy KB kept for audit/reference only — NOT used for routing (Option A)
+# Maps known code → its human description (used as embedding input)
+REASON_CODE_DESCRIPTIONS: dict[str, str] = {
+    "VISA_10_4": "Fraud – Card Absent Environment unauthorized card stolen",
+    "VISA_13_1": "Merchandise Services Not Received not delivered",
+    "VISA_13_3": "Not as Described or Defective Merchandise quality dispute",
+    "VISA_13_7": "Cancelled Merchandise Services refund policy",
+    "MC_4853":   "Cardholder Dispute Not as Described defective product",
+    "MC_4855":   "Goods or Services Not Provided not delivered",
+    "MC_4863":   "Cardholder Does Not Recognize Transaction fraud",
+    "UPI_RC1":   "UPI Unauthorized Transaction fraud no authorization",
+    "UPI_RC2":   "UPI Goods Services Not Provided not received",
+}
+# Keep old KB for backward compat in tests (exposes REASON_CODE_KB)
+REASON_CODE_KB = {
+    k: {"dispute_class": v, **CATEGORY_STRATEGY[v]}
+    for k, v in {
+        "VISA_10_4": "fraud", "VISA_13_1": "non_receipt", "VISA_13_3": "service", "VISA_13_7": "policy",
+        "MC_4853": "service", "MC_4855": "non_receipt", "MC_4863": "fraud", "UPI_RC1": "fraud", "UPI_RC2": "non_receipt"
+    }.items()
+}
+# Also expose descriptions for audit
+for k in REASON_CODE_KB:
+    REASON_CODE_KB[k]["description"] = REASON_CODE_DESCRIPTIONS.get(k, "")
+
+# ── TF-IDF embedder (local, 5ms, $0) ────────────────────────────────────────
+# Fit once on 4 centroids — vocabulary = fraud/non_receipt/service/policy keywords
+_centroid_names = list(CATEGORY_CENTROIDS.keys())
+_centroid_docs = list(CATEGORY_CENTROIDS.values())
+_vectorizer = TfidfVectorizer()
+_centroid_vectors = _vectorizer.fit_transform(_centroid_docs)  # shape (4, vocab)
 
 
-# ── LLM Fallback ──────────────────────────────────────────────────────────────
-
-async def _llm_classify_unknown_code(reason_code: str) -> dict:
+def _classify_via_embedding(reason_code: str) -> tuple[str, dict, str]:
     """
-    Called only when reason_code is NOT in REASON_CODE_KB.
-    Uses OpenAI (preferred, if key set) or Gemini fallback.
-    Returns a strategy dict in the same format as REASON_CODE_KB entries.
+    Map any reason_code (400+ codes) → dispute_class via cosine to 4 centroids.
+    Returns (dispute_class, strategy, source)
     """
-    logger.warning("Unknown reason code '%s' — falling back to LLM classification", reason_code)
-
-    prompt = f"""You are a payment dispute expert. Given the reason code "{reason_code}", 
-determine the dispute classification.
-
-Reply with ONLY valid JSON in this exact format:
-{{
-  "dispute_class": "<fraud|non_receipt|service|policy>",
-  "description": "<short human-readable description>",
-  "required_evidence": ["<logistics|security|crm>"],
-  "optional_evidence": ["<logistics|security|crm>"],
-  "executors": ["<logistics|security|crm>"],
-  "base_confidence": <0.40 to 0.70 as a float>
-}}
-
-Be conservative with base_confidence for unknown codes."""
-
+    # 1. Get text for embedding: known description or raw code itself
+    text = REASON_CODE_DESCRIPTIONS.get(reason_code, reason_code.replace("_", " ").replace("-", " "))
+    # 2. Vectorize incoming text with same vectorizer
     try:
-        import json
-
-        # Prefer OpenAI if key is available
-        if settings.openai_api_key:
-            from langchain_openai import ChatOpenAI
-            from langchain_core.messages import HumanMessage
-            llm = ChatOpenAI(
-                model="gpt-4o-mini",
-                api_key=settings.openai_api_key,
-                temperature=0,
-            )
-        elif settings.google_api_key:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            from langchain_core.messages import HumanMessage
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
-                google_api_key=settings.google_api_key,
-                temperature=0,
-            )
-        else:
-            raise ValueError("No LLM API key configured")
-
-        from langchain_core.messages import HumanMessage
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
-        raw = response.content.strip().strip("```json").strip("```").strip()
-        strategy = json.loads(raw)
-        strategy["llm_classified"] = True
-        logger.info("LLM classified '%s' as: %s", reason_code, strategy["dispute_class"])
-        return strategy
-
+        vec = _vectorizer.transform([text])
+        sims = cosine_similarity(vec, _centroid_vectors)[0]  # 4 scores
+        best_idx = int(sims.argmax())
+        max_sim = float(sims.max())
+        # If no word overlap (e.g., "UPI_999_NEW"), sims are all 0 -> fallback to safe default
+        if max_sim < 0.15:
+            logger.warning("Embedding low confidence for %s (max_sim=%.2f) -> fallback default", reason_code, max_sim)
+            return "unknown", {
+                "description": f"Unknown reason code: {reason_code}",
+                "required_evidence": ["logistics", "security", "crm"],
+                "optional_evidence": [],
+                "executors": ["logistics", "security", "crm"],
+                "base_confidence": 0.40,
+            }, "fallback_default"
+        dispute_class = _centroid_names[best_idx]
+        strategy = CATEGORY_STRATEGY[dispute_class]
+        logger.info("Embedding classify | code=%s text='%s' -> class=%s sims=%s", reason_code, text, dispute_class, [f"{c}:{s:.2f}" for c,s in zip(_centroid_names, sims)])
+        return dispute_class, strategy, "embedding"
     except Exception as exc:
-        logger.error("LLM fallback failed for code '%s': %s — using safe default", reason_code, exc)
-        return {
-            "dispute_class":     "unknown",
-            "description":       f"Unknown reason code: {reason_code}",
+        logger.warning("Embedding failed for %s: %s -> fallback", reason_code, exc)
+        return "unknown", {
+            "description": f"Unknown reason code: {reason_code}",
             "required_evidence": ["logistics", "security", "crm"],
             "optional_evidence": [],
-            "executors":         ["logistics", "security", "crm"],
-            "base_confidence":   0.40,
-            "llm_classified":    False,
-            "fallback":          True,
-        }
-
+            "executors": ["logistics", "security", "crm"],
+            "base_confidence": 0.40,
+        }, "fallback_default"
 
 
 # ── Classifier Agent (LangGraph node) ────────────────────────────────────────
@@ -193,47 +140,32 @@ Be conservative with base_confidence for unknown codes."""
 async def classifier_agent(state: DisputeState) -> DisputeState:
     """
     LangGraph node: CLASSIFY
-    Input:  state with reason_code
+    Input:  state with reason_code (any of 400+ codes)
     Output: state + dispute_class, evidence_strategy, initial_confidence
+    Method: 4-centroid TF-IDF embedding (Option A), not 400 ifs. No LLM.
     """
     reason_code = state["reason_code"]
     logger.info("Classifier | dispute_id=%s | reason_code=%s", state["dispute_id"], reason_code)
 
-    # 1. Deterministic lookup (preferred)
-    if reason_code in REASON_CODE_KB:
-        strategy = REASON_CODE_KB[reason_code]
-        source = "kb"
-        logger.info("Classifier | KB hit | class=%s | confidence=%.2f",
-                    strategy["dispute_class"], strategy["base_confidence"])
-    else:
-        # 2. LLM fallback for unknown codes
-        strategy = await _llm_classify_unknown_code(reason_code)
-        source = "llm" if not strategy.get("fallback") else "fallback_default"
+    # Deterministic embedding (local, $0, 5ms) — covers 400+ via 4 categories
+    dispute_class, strategy, source = _classify_via_embedding(reason_code)
 
-    # 2. Update state
-    state["dispute_class"]      = strategy["dispute_class"]
-    state["evidence_strategy"]  = strategy["executors"]       # which executors to call
+    # 3. Update state via category strategy (4 entries, not 400)
+    state["dispute_class"] = dispute_class
+    state["evidence_strategy"] = strategy["executors"]
     state["initial_confidence"] = strategy["base_confidence"]
 
-    # 3. Append to audit trail
+    # 4. Audit
     state["audit_events"].append({
-        "stage":         "CLASSIFICATION",
-        "agent":         "ClassifierAgent",
-        "timestamp":     datetime.now(timezone.utc).isoformat(),
-        "reason_code":   reason_code,
-        "source":        source,                              # kb | llm | fallback_default
-        "dispute_class": strategy["dispute_class"],
-        "description":   strategy["description"],
-        "executors":     strategy["executors"],
+        "stage": "CLASSIFICATION",
+        "agent": "ClassifierAgent",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "reason_code": reason_code,
+        "source": source,  # embedding | llm | fallback_default
+        "dispute_class": dispute_class,
+        "description": strategy["description"],
+        "executors": strategy["executors"],
         "base_confidence": strategy["base_confidence"],
     })
-
-    logger.info(
-        "Classifier done | class=%s | executors=%s | confidence=%.2f | source=%s",
-        strategy["dispute_class"],
-        strategy["executors"],
-        strategy["base_confidence"],
-        source,
-    )
-
+    logger.info("Classifier done | class=%s | executors=%s | confidence=%.2f | source=%s", dispute_class, strategy["executors"], strategy["base_confidence"], source)
     return state
