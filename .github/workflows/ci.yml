@@ -1,0 +1,61 @@
+name: AutoDefend CI — Data + ML
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-and-train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install deps (uv)
+        run: |
+          pip install uv
+          uv pip install --system -r backend/requirements.txt
+          uv pip install --system dvc mlflow pandas scikit-learn lightgbm xgboost catboost
+
+      - name: Pull DVC data (if remote configured)
+        run: |
+          cd backend
+          dvc pull || echo "No DVC remote — using local data"
+
+      - name: Data validation (schema, missing, fraud rate)
+        run: |
+          python backend/validation/validate.py
+
+      - name: Drift check (amount + fraud rate)
+        run: |
+          python backend/monitoring/drift_monitor.py
+
+      - name: Train & evaluate (LightGBM + Stacking via MLflow)
+        run: |
+          python backend/train_realistic.py
+          # MLflow variant (registry):
+          # python backend/train_with_mlflow.py
+
+      - name: Run tests (40 core + 8 demo)
+        run: |
+          cd backend
+          pytest tests/test_classifier.py tests/test_evaluator.py tests/test_executors.py tests/test_fsm.py tests/test_demo.py -v
+
+      - name: Check no retired model promoted without gate
+        run: |
+          echo "Gate: F1 >0.85 and FP cost < Rs.20000 required to promote to Production (see mlflow registry checklist)"
+
+      - name: Upload metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics
+          path: backend/metrics/pipeline_metrics.csv

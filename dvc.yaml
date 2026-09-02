@@ -1,0 +1,23 @@
+stages:
+  validate:
+    cmd: python backend/validation/validate.py
+    deps:
+      - backend/data/synthetic_mixed_realistic_700.csv
+      - backend/validation/rules.yaml
+    outs: []
+  train:
+    cmd: python backend/train_realistic.py
+    deps:
+      - backend/data/synthetic_mixed_realistic_700.csv
+      - backend/train_realistic.py
+    outs:
+      - backend/data/models/lightgbm_baseline.pkl
+      - backend/data/models/stacking_ensemble.pkl
+    metrics:
+      - metrics.json:
+          cache: false
+  drift:
+    cmd: python backend/monitoring/drift_monitor.py
+    deps:
+      - backend/data/synthetic_mixed_realistic_700.csv
+    outs: []

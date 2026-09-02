@@ -1,0 +1,21 @@
+# rules.yaml — Data quality gates (Great Expectations lite)
+# Fails pipeline if any rule violated — senior MLOps: validate before train
+dataset: data/synthetic_mixed_realistic_700.csv
+rules:
+  - name: schema_columns
+    check: columns == [id, vertical, reason_code, amount_paise, logistics_status, signature, three_ds, ip_match, cvv_match, avs, order_count, prior_disputes, days_since, ground_truth]
+  - name: reason_code_allowed
+    check: reason_code in [VISA_10_4, VISA_13_1, VISA_13_3, VISA_13_7, MC_4853, MC_4855, MC_4863, UPI_RC1, UPI_RC2]
+  - name: amount_positive
+    check: amount_paise > 0 and amount_paise <= 2000000
+  - name: logistics_status_allowed
+    check: logistics_status in [DELIVERED, IN_TRANSIT, TIMEOUT]
+  - name: ground_truth_allowed
+    check: ground_truth in [CONTEST, RECOMMEND_ACCEPT, HUMAN_REVIEW]
+  - name: no_null_ids
+    check: id not null and unique
+  - name: fraud_rate_range
+    check: fraud_rate between 0.25 and 0.45  # CONTEST 279/700 = 0.40, allow drift ±0.15
+thresholds:
+  missing_signature_max: 0.40  # 38.5% in v2, fail if >40%
+  heavy_tail_max: 0.15        # >500k should be <15%
