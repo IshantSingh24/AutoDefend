@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoDefend — Chargeback Defense Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="console">
+  <section id="app">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <a href="/" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px">
+            <span class="brand-mark">A</span>
+            AutoDefend
+          </a>
+          <small>Chargeback Defense Console</small>
+        </div>
+        <span class="badge-live">● LIVE</span>
+        <nav class="topnav" id="topnav">
+          <a href="#" data-view="overview" class="active">Overview</a>
+          <a href="#" data-view="disputes">Disputes</a>
+          <a href="#" data-view="false-positive">False-Positive Cost</a>
+        </nav>
+        <div class="user-chip">
+          <div>
+            <div class="who" id="me-name"></div>
+            <div class="merchant" id="me-merchant"></div>
+          </div>
+          <button class="btn ghost small" id="logout-btn">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section id="view-overview">
+        <div class="page-head">
+          <h1>Performance overview</h1>
+          <span class="sub">Last 30 days</span>
+        </div>
+        <div class="stats" id="summary-stats"></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h2>Recent disputes</h2><a class="btn ghost" href="#" data-to="disputes">View all →</a></div>
+            <div class="table-scroll"><table>
+              <thead><tr>
+                <th>Dispute</th><th>Reason</th><th>Amount</th><th>Decision</th><th>Status</th>
+              </tr></thead>
+              <tbody id="recent-rows"></tbody>
+            </table></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Human review queue</h2></div>
+            <div id="review-queue"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-disputes" class="hidden">
+        <div class="page-head">
+          <h1>Disputes</h1>
+          <span class="sub" id="dispute-count"></span>
+        </div>
+        <div class="card">
+          <div class="table-scroll"><table>
+            <thead><tr>
+              <th>Dispute</th><th>Reason</th><th>Amount</th><th>Confidence</th><th>Decision</th><th>Status</th>
+            </tr></thead>
+            <tbody id="dispute-rows"></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <section id="view-false-positive" class="hidden">
+        <div class="page-head">
+          <h1>False-positive cost</h1>
+          <span class="sub">The honest cost of over-filing — disputes contested but lost</span>
+        </div>
+        <div class="stats">
+          <div class="stat focus"><div class="label">Total FP cost (30d)</div><div class="value" id="fp-cost">—</div><div class="note">Funds lost filing + arbitration over evidence we couldn't win</div></div>
+          <div class="stat"><div class="label">FP count</div><div class="value" id="fp-count">—</div></div>
+          <div class="stat"><div class="label">Avg cost / FP</div><div class="value" id="fp-avg">—</div></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Breakdown</h2></div>
+          <div id="fp-list"></div>
+        </div>
+      </section>
+
+      <section id="view-detail" class="hidden"></section>
+    </main>
+
+    <footer class="footer">AutoDefend · Autonomous chargeback defense with a verifiable audit trail</footer>
+  </section>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

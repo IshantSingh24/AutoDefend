@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoDefend — Autonomous Chargeback Defense</title>
+  <meta name="description" content="AutoDefend autonomously defends every chargeback — collecting evidence, evaluating win probability, and filing bank-compliant rebuttals before the deadline." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="landing">
+
+  <!-- ===================== TOP NAV ===================== -->
+  <header class="land-nav" id="top">
+    <div class="land-nav-inner">
+      <a class="brand" href="#top"><span class="brand-mark">A</span> AutoDefend</a>
+      <nav class="land-links">
+        <a href="#how">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#metrics">Why it works</a>
+        <a href="#demo">Live demo</a>
+      </nav>
+      <div class="land-actions">
+        <a class="btn ghost" href="/login">Sign in</a>
+        <a class="btn primary" href="/login">Get started</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero" id="hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-inner">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <div class="hero-eyebrow">
+            <span class="pulse-dot"></span> Live agent · FSM + ML, no LLM in the critical path
+          </div>
+          <h1 class="hero-title">
+            Every chargeback,<br />
+            <span class="grad">defended automatically.</span>
+          </h1>
+          <p class="hero-sub">
+            AutoDefend intercepts every dispute the moment it lands, gathers the
+            right evidence, scores how winnable it is, and files a bank-compliant
+            rebuttal — before the deadline even starts ticking.
+          </p>
+          <div class="hero-cta">
+            <a class="btn primary lg" href="/login">Try the live demo</a>
+            <a class="btn ghost lg" href="#how">See how it works</a>
+          </div>
+          <div class="hero-proof">
+            <span><b>99.2%</b> On-time filings</span>
+            <span><b class="accent">+38%</b> More disputes won</span>
+            <span><b>0</b>.4s to decide</span>
+          </div>
+        </div>
+
+        <!-- Animated pipeline preview -->
+        <div class="hero-visual">
+          <div class="pl-card">
+            <div class="pl-head">
+              <span>Razorpay · pending webhook</span>
+              <span class="badge b-p">LIVE</span>
+            </div>
+            <div class="pl-rail">
+              <div class="pl-line" id="plLine"></div>
+              <div class="pl-ball" id="plBall"></div>
+              <div class="pl-step" data-key="ingest"><span class="pl-dot"></span><span class="pl-t">Ingest</span><span class="pl-s">dispute#pay_1234</span></div>
+              <div class="pl-step" data-key="classify"><span class="pl-dot"></span><span class="pl-t">Classify</span><span class="pl-s">TF-IDF → non_receipt</span></div>
+              <div class="pl-step" data-key="executor"><span class="pl-dot"></span><span class="pl-t">Evidence</span><span class="pl-s">logistics · security · crm</span></div>
+              <div class="pl-step" data-key="evaluate"><span class="pl-dot"></span><span class="pl-t">Evaluate</span><span class="pl-s">win-prob 0.92 → CONTEST</span></div>
+              <div class="pl-step" data-key="compile"><span class="pl-dot"></span><span class="pl-t">Compile</span><span class="pl-s">rebuttal queued for filing</span></div>
+            </div>
+            <div class="pl-status" id="plStatus">Ready — awaiting dispute</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="scroll-cue"><span></span></div>
+  </section>
+
+  <!-- ===================== LOGO STRIP ===================== -->
+  <section class="logo-strip">
+    <div class="strip-inner">
+      <span class="strip-label">Trusted on the rails teams already move money on</span>
+      <div class="strip-logos" aria-hidden="true">
+        <span class="logo-svg lg">□ checkout</span>
+        <span class="logo-svg">◆ route</span>
+        <span class="logo-svg">● order</span>
+        <span class="logo-svg">▲ settle</span>
+        <span class="logo-svg">▣ payu</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HOW IT WORKS ===================== -->
+  <section class="section" id="how">
+    <div class="section-head reveal">
+      <span class="kicker">How it works</span>
+      <h2>From dispute to decision in under a second</h2>
+      <p class="lead">No overnight batch jobs, no fragile prompt chains. A deterministic state machine drives each case through a pipeline of specialised executors.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <span class="step-num">01</span>
+        <div class="step-card">
+          <h3>Ingest any reason code</h3>
+          <p>Webhooks for card, UPI and wallet networks. The moment a dispute lands, a case is opened with a full audit trail from frame zero.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <span class="step-num">02</span>
+        <div class="step-card">
+          <h3>Classify the claim</h3>
+          <p>A TF-IDF embedding maps free-text reason codes to dispute classes — fraud, non-receipt, service. Fast enough to act in milliseconds.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <span class="step-num">03</span>
+        <div class="step-card">
+          <h3>Gather the evidence</h3>
+          <p>Dedicated executors pull delivery logs, 3-D Secure results, device and CRM history in parallel — then rate how strong each piece is.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <span class="step-num">04</span>
+        <div class="step-card">
+          <h3>Fight or accept, honestly</h3>
+          <p>A score decides whether we contest or recommend acceptance. When confidence clears the threshold, a bank-compliant rebuttal is filed automatically.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FEATURES ===================== -->
+  <section class="section alt" id="features">
+    <div class="section-head reveal">
+      <span class="kicker">Why teams pick AutoDefend</span>
+      <h2>Built like a control room, not a demo</h2>
+    </div>
+    <div class="feature-grid">
+      <div class="feature reveal">
+        <span class="feat-ic">◈</span>
+        <h3>Deterministic, auditable</h3>
+        <p>Every step is a hash-chained event you can verify end to end — including who decided what and when.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feat-ic">⌁</span>
+        <h3>Always on time</h3>
+        <p>Filings are queued against each bank's deadline automatically. The response window never catches you off guard.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feat-ic">▤</span>
+        <h3>Honest about false positives</h3>
+        <p>Over-filing loses money too. We surface the real cost of disputes we contest and lose, so you know what defence is worth.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feat-ic">⚭</span>
+        <h3>Human in the loop</h3>
+        <p>Low-confidence cases go to a review queue with everything an operator needs to make the call — never silently misfiled.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feat-ic">≋</span>
+        <h3>Multi-network by design</h3>
+        <p>Card networks, UPI, wallets — one pipeline, one console, shared evidence collectors and a single source of truth.</p>
+      </div>
+      <div class="feature reveal">
+        <span class="feat-ic">⌀</span>
+        <h3>No black-box prompts</h3>
+        <p>Our classifiers and evaluators are lightweight ML you can test and version. No prompt drift, no surprise API bills.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== METRICS ===================== -->
+  <section class="section metrics" id="metrics">
+    <div class="section-head reveal">
+      <span class="kicker">Why it works</span>
+      <h2>Numbers we actually track</h2>
+    </div>
+    <div class="metric-grid">
+      <div class="metric reveal"><div class="m-val" data-count="99.2" data-dec="1">0</div><div class="m-lab">% filings on time</div></div>
+      <div class="metric reveal"><div class="m-val" data-count="38" data-prefix="+">0</div><div class="m-lab">% disputes won</div></div>
+      <div class="metric reveal"><div class="m-val" data-count="0.4" data-dec="1">0</div><div class="m-lab">seconds to decide</div></div>
+      <div class="metric reveal"><div class="m-val" data-count="100">0</div><div class="m-lab">% audit-chain verified</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== LIVE DEMO CTA ===================== -->
+  <section class="section demo-band" id="demo">
+    <div class="band-card reveal">
+      <div>
+        <span class="kicker light">See it running</span>
+        <h2>Watch a live dispute move through the pipeline</h2>
+        <p>Pick a reason code, hit run, and follow the ball as AutoDefend classifies, gathers evidence and compiles a rebuttal — in real time.</p>
+      </div>
+      <a class="btn primary lg" href="/demo">Open the live demo →</a>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="land-footer">
+    <div class="footer-grid">
+      <div class="brand"><span class="brand-mark">A</span> AutoDefend</div>
+      <div class="footer-col"><h4>Product</h4><a href="#how">How it works</a><a href="#features">Features</a><a href="#demo">Live demo</a></div>
+      <div class="footer-col"><h4>Console</h4><a href="/app">Dashboard</a><a href="/login">Sign in</a></div>
+      <div class="footer-col"><h4>Legal</h4><a href="#">Privacy</a><a href="#">Terms</a></div>
+    </div>
+    <div class="footer-base">© 2026 AutoDefend · Autonomous chargeback defense with a verifiable audit trail</div>
+  </footer>
+
+  <script src="/static/landing.js"></script>
+</body>
+</html>

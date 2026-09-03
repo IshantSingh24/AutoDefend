@@ -1,0 +1,2 @@
+timestamp,rows,mean_amount,std_amount,fraud_rate,drift_amount,drift_fraud
+2026-09-02T23:21:01.140939,700,230474,244443,0.3986,0.4361,0.0014

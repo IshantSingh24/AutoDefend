@@ -1,12 +1,19 @@
 import logging
 from contextlib import asynccontextmanager
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.db.init_db import init_db
 from app.api.webhooks import router as webhook_router
+from app.api.dashboard import router as dashboard_router
+from app.api.bulk_auth import router as auth_router
+from app.api.demo import router as demo_router
 
 settings = get_settings()
 
@@ -55,10 +62,33 @@ app.add_middleware(
 
 # ── Routers ────────────────────────────────────────────────
 app.include_router(webhook_router, prefix="/webhook", tags=["Webhooks"])
+app.include_router(auth_router, tags=["Auth"])           # /auth/register, /login, /me, /logout
+app.include_router(dashboard_router, prefix="/api", tags=["Dashboard"])
+app.include_router(demo_router, prefix="/api", tags=["Demo"])   # /api/demo/simulate (SSE)
 
-# Future routers (added as steps complete):
-# from app.api.dashboard import router as dashboard_router
-# app.include_router(dashboard_router, prefix="/api", tags=["Dashboard"])
+# ── Frontend static assets ─────────────────────────────────
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_dir = os.path.join(os.path.dirname(backend_dir), "frontend")
+if os.path.isdir(frontend_dir):
+    app.mount("/static", StaticFiles(directory=os.path.join(frontend_dir)), name="static")
+
+    # Public pages
+    @app.get("/", include_in_schema=False)
+    async def serve_landing():
+        return FileResponse(os.path.join(frontend_dir, "landing.html"))
+
+    @app.get("/login", include_in_schema=False)
+    async def serve_login():
+        return FileResponse(os.path.join(frontend_dir, "login.html"))
+
+    @app.get("/demo", include_in_schema=False)
+    async def serve_demo():
+        return FileResponse(os.path.join(frontend_dir, "demo.html"))
+
+    # Authenticated console (redirect logic lives in auth.js → /app)
+    @app.get("/app", include_in_schema=False)
+    async def serve_dashboard():
+        return FileResponse(os.path.join(frontend_dir, "index.html"))
 
 
 @app.get("/health", tags=["Health"])

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in — AutoDefend</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="auth-body">
+  <nav class="auth-nav">
+    <a class="brand" href="/"><span class="brand-mark">A</span> AutoDefend</a>
+    <a class="btn ghost" href="/">Back to home</a>
+  </nav>
+
+  <section id="auth-page" class="auth-page hidden">
+    <div class="auth-card">
+      <h1 id="auth-title">Sign in</h1>
+      <p class="auth-sub" id="auth-sub">Autonomous chargeback defense with a verifiable audit trail</p>
+
+      <div class="auth-tabs">
+        <button id="tab-login" class="active">Sign in</button>
+        <button id="tab-register">Create account</button>
+      </div>
+
+      <div id="auth-msg" class="hidden"></div>
+
+      <form id="auth-form">
+        <div class="field hidden" id="field-name">
+          <label for="full_name">Full name</label>
+          <input type="text" id="full_name" autocomplete="name" />
+        </div>
+        <div class="field hidden" id="field-merchant">
+          <label for="merchant_id">Merchant ID</label>
+          <input type="text" id="merchant_id" autocomplete="organization" placeholder="e.g. merchant_a" />
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="current-password" required />
+        </div>
+        <button type="submit" class="btn primary" id="auth-submit" style="width:100%">Sign in</button>
+      </form>
+
+      <div class="auth-demos">
+        Demo accounts:<br />
+        <code>akhil@merchanta.com</code> / <code>password</code> — merchant_a<br />
+        <code>priya@merchantb.com</code> / <code>password</code> — merchant_b
+      </div>
+    </div>
+  </section>
+
+  <script src="/static/auth.js"></script>
+</body>
+</html>

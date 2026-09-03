@@ -15,6 +15,27 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# ── Users / Multi-tenancy ─────────────────────────────────────────────────────
+
+class User(Base):
+    """
+    A merchant user who logs into the dashboard.
+    `merchant_id` scopes them to their own disputes — the core of multi-tenancy.
+    """
+    __tablename__ = "users"
+
+    id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email        = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)   # bcrypt hash, never plaintext
+    full_name    = Column(String(128))
+    merchant_id  = Column(String(64), nullable=False, index=True)
+    is_admin     = Column(Boolean, default=False)
+    created_at   = Column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+    def __repr__(self) -> str:
+        return f"<User {self.email} | {self.merchant_id}>"
+
+
 # ── Disputes ──────────────────────────────────────────────────────────────────
 
 class Dispute(Base):

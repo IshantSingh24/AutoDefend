@@ -35,3 +35,8 @@ httpx>=0.27.0
 # ── ML metrics (precision/recall on held-out test set) ────
 scikit-learn>=1.4.2
 numpy>=1.26.4
+
+# ── Auth (JWT session + password hashing) ────────────────
+PyJWT>=2.8.0
+bcrypt>=4.1.0
+email-validator>=2.1.0

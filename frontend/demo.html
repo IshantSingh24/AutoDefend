@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutoDefend — Live Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="console">
+  <section id="demo-app" class="hidden">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand"><a href="/" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px"><span class="brand-mark">A</span> AutoDefend</a> <small>Live Demo</small></div>
+        <nav class="topnav" style="margin-left:auto">
+          <a href="/">Home</a>
+          <a href="/app">Dashboard</a>
+        </nav>
+        <div class="user-chip">
+          <div>
+            <div class="who" id="me-name"></div>
+            <div class="merchant" id="me-merchant"></div>
+          </div>
+          <button class="btn ghost small" id="logout-btn">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap" style="max-width:920px">
+      <div class="page-head">
+        <h1>Live pipeline demo</h1>
+        <span class="sub">Watch a real dispute ride the rail — each executor runs, then the ball moves on</span>
+      </div>
+
+      <div class="card" style="padding:var(--space-5)">
+        <div class="grid-2" style="margin-bottom:0">
+          <div class="field" style="margin-bottom:0">
+            <label for="reason">Reason code</label>
+            <select id="reason" class="field input" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;color:var(--ink-900);background:var(--surface-0)">
+              <option value="VISA_10_4">VISA_10_4 · Fraud – Card Absent</option>
+              <option value="VISA_13_1">VISA_13_1 · Merchandise Not Received</option>
+              <option value="MC_4853">MC_4853 · Not as Described</option>
+              <option value="UPI_RC1">UPI_RC1 · Unauthorized Transaction</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="amount">Amount (₹)</label>
+            <input type="number" id="amount" value="1250" min="10" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--ink-900);background:var(--surface-0)" />
+          </div>
+        </div>
+        <div style="margin-top:var(--space-5);display:flex;gap:var(--space-3);align-items:center">
+          <button class="btn primary" id="run-btn">Run live demo</button>
+          <span class="note" id="run-status" style="color:var(--ink-300);font-size:12.5px">Ready</span>
+        </div>
+      </div>
+
+      <!-- Pipeline rail: vertical neon line + travelling ball -->
+      <div id="pipeline" style="display:none;margin-top:var(--space-5)">
+        <div class="card">
+          <div class="card-head"><h2>Pipeline</h2><span class="badge b-i" id="elapsed">0s</span></div>
+          <div class="dm-rail">
+            <div class="dm-steps" id="railSteps">
+              <div class="dm-railball" id="railBall"></div>
+              <div class="dm-railline" id="railLine"></div>
+            </div>
+          </div>
+        </div>
+        <div id="result-card" style="margin-top:var(--space-5)"></div>
+      </div>
+    </main>
+  </section>
+
+  <script src="/static/demo.js"></script>
+</body>
+</html>

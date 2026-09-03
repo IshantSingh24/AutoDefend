@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     # ── Redis ───────────────────────────────────────────────
     redis_url: str = "redis://localhost:6379/0"
 
+    # ── Auth (JWT session) ─────────────────────────────────
+    # Rotate in production; keep secret. Used to sign session cookies.
+    jwt_secret: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 12   # 12h dashboard sessions
+
     # ── App behaviour ───────────────────────────────────────
     app_env: str = "development"
     log_level: str = "INFO"
