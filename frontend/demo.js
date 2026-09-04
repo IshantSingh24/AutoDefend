@@ -1,191 +1,310 @@
-/* AutoDefend — live demo controller
-   Vanilla JS. Streams the pipeline over Server-Sent Events from
-   /api/demo/simulate. Renders it as a neon "rail": a vertical line with a
-   glowing blue ball that travels down the rail, seating itself on each step
-   while that step executes, then settles to "done" and moves on. */
+/* AutoDefend — demo page controller (redesigned)
+   Two-column live view: stage cards on left, streamed event log on right.
+   SSE from /api/demo/simulate drives both. */
 
 const $ = id => document.getElementById(id);
+const fmtTime = () => new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-/* ---------- auth gate (directs to /login page) ---------- */
-async function initAuth(){
+/* ── Auth gate ── */
+async function initAuth() {
   try {
     const r = await fetch("/auth/me", { credentials: "same-origin" });
-    if(r.ok){
+    if (r.ok) {
       const me = await r.json();
       $("me-name").textContent = me.full_name || me.email;
       $("me-merchant").textContent = me.merchant_id;
       $("demo-app").classList.remove("hidden");
       return;
     }
-  } catch(_){}
+  } catch (_) {}
   location.href = "/login";
 }
 
-/* ---------- pipeline rail ---------- */
-const BASE_STAGES = [["ingest","Ingestion"],["classify","Classification"],["evaluate","Evaluation"],["compile","Compile"],["done","Complete"]];
-const stageLabel = {
-  ingest:"Ingestion", classify:"Classification", executor:"Evidence",
-  evaluate:"Evaluation", compile:"Compile", done:"Complete",
-};
+/* ── Stage definitions ── */
+const BASE_STAGES = [
+  { key: "ingest",   icon: "⚡", name: "Ingestion",      sub: "Webhook → Dispute record created" },
+  { key: "classify", icon: "◈", name: "Classification", sub: "TF-IDF cosine → dispute class" },
+  // executor sub-nodes injected here
+  { key: "evaluate", icon: "▤", name: "Evaluation",     sub: "LightGBM → fight_confidence" },
+  { key: "compile",  icon: "📄", name: "Compilation",    sub: "Rebuttal PDF with evidence exhibits" },
+  { key: "done",     icon: "✓", name: "Complete",       sub: "Audit chain sealed & persisted" },
+];
 
-const rails = sel => document.getElementById("railSteps").querySelectorAll(sel);
-let ballY = 0;   // current ball position, updated by travelTo
+const stageOrder = ["ingest", "classify", "evaluate", "compile", "done"];
+let logEventCount = 0;
+let elapsedTimer = null;
+let elapsedStart = 0;
 
-function resetPipeline(){
-  // remove only step nodes — keep the ball & line (children of #railSteps)
-  document.querySelectorAll("#railSteps > .dm-node").forEach(n => n.remove());
-  BASE_STAGES.forEach(([_, label]) => $("railSteps").appendChild(makeNode(label)));
-  ballY = 0;
-  $("railBall").classList.remove("ok");
-  placeBall(8, 0);       // x is trivial; travelTo repositions the x anyway
-  growLine(10);
-  $("pipeline").style.display = "block";
-  $("result-card").innerHTML = "";
-  $("run-status").textContent = "Standing by…";
-}
-
-function makeNode(label){
-  const n = document.createElement("div");
-  n.className = "dm-node";
-  n.innerHTML = `
-    <span class="dm-dot"></span>
-    <div class="dm-body">
-      <span class="dm-label">${label}</span>
-      <div class="dm-detail"></div>
-    </div>`;
-  return n;
-}
-
-/* Insert a sub-node (e.g. "Evidence · logistics") before "Evaluation". */
-function insertSubNode(subLabel){
-  const node = makeNode(stageLabel.executor + " · " + subLabel);
-  node.classList.add("sub");
-  node.dataset.sub = subLabel;
-  const list = $("railSteps");
-  let ref = null;
-  for(const n of rails(".dm-node")){
-    if(!n.dataset.sub && n.querySelector(".dm-label").textContent === "Evaluation"){ ref = n; break; }
-  }
-  if(ref) list.insertBefore(node, ref);
-  else list.appendChild(node);
-  return node;
-}
-
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-/* Rail coordinates — simple & reliable.
-   .dm-node is a direct child of the relative-positioned .dm-steps, so
-   node.offsetTop is already rail-relative. The ball/line sit next to the
-   dots; we align them to the vertical centre of the target node. */
-const BALL = 16, LINE = 2, DOT_X = 7;   // DOT_X = edge of node dot area
-function nodeCenter(node){
-  const rail = node.offsetParent;                 // .dm-steps
-  return { y: node.offsetTop + node.offsetHeight/2,
-           x: (node.querySelector(".dm-dot").offsetLeft + node.querySelector(".dm-dot").offsetWidth/2) };
-}
-function placeBall(x, y){
-  $("railBall").style.left = (x - BALL/2) + "px";
-  $("railBall").style.top  = (y - BALL/2) + "px";
-}
-function placeLine(x){
-  $("railLine").style.left = (x - LINE/2) + "px";
-}
-function growLine(y){
-  $("railLine").style.height = (y + BALL/2) + "px";
-}
-
-/* Animate the ball down the rail to a node — pure rAF tween. */
-function travelTo(node, dur = 600){
-  return new Promise(res => {
-    if(!node){ res(); return; }
-    const target = nodeCenter(node);
-    placeLine(target.x);
-    const start = ballY;
-    const startT = performance.now();
-    const ease = t => t < 0.5 ? 2*t*t : -1 + (4-2*t)*t;
-    const frame = now => {
-      const t = Math.min(1, (now - startT)/dur);
-      const y = start + (target.y - start) * ease(t);
-      placeBall(target.x, y);
-      growLine(y);
-      if(t < 1){ requestAnimationFrame(frame); }
-      else { ballY = target.y; growLine(target.y); res(); }
-    };
-    requestAnimationFrame(frame);
+/* ── Stage card management ── */
+function buildStageDom() {
+  const list = $("stage-list");
+  list.innerHTML = "";
+  BASE_STAGES.forEach(s => {
+    const card = makeStageCard(s.key, s.icon, s.name, s.sub, false);
+    list.appendChild(card);
   });
 }
 
-function stageState(node, state){
-  node.classList.remove("running","ok","error");
-  node.classList.add(state);
+function makeStageCard(key, icon, name, detail, isSub) {
+  const card = document.createElement("div");
+  card.className = "stage-card" + (isSub ? " sub" : "");
+  card.dataset.key = key;
+  card.innerHTML = `
+    <div class="stage-icon">${icon}</div>
+    <div class="stage-body">
+      <div class="stage-name">${name}</div>
+      <div class="stage-detail">${detail || ""}</div>
+    </div>
+    <div class="stage-badge"><span>—</span></div>`;
+  return card;
 }
 
-/* Mark a step: classify/ingest/evaluate/compile/done OR a dynamic sub-node. */
-async function markStage(stage, state, text, detail, dur){
-  // locate target node
-  let target = null;
-  if(stage === "executor"){
-    const subLabel = (text && text.match(/\b(logistics|security|crm)\b/) || [,"executor"])[1];
-    for(const n of rails(".dm-node")){ if(n.dataset.sub === subLabel){ target = n; break; } }
-    if(!target) target = insertSubNode(subLabel);
-  } else {
-    // find the base node by its label (robust to inserted sub-nodes)
-    const want = stageLabel[stage];
-    for(const n of rails(".dm-node")){
-      if(!n.dataset.sub && n.querySelector(".dm-label").textContent === want){ target = n; break; }
-    }
-  }
-
-  if(!target) return;
-  const ball = $("railBall");
-  if(state === "running"){
-    ball.classList.remove("ok");            // travelling / executing → blue
-    await travelTo(target, dur || 700);
-    stageState(target, "running");
-    const d = target.querySelector(".dm-detail");
-    d.textContent = (text || "") + (detail ? " — " + detail : "");
-  } else if(state === "ok"){
-    ball.classList.add("ok");               // seated & done → green
-    stageState(target, "ok");
-    const d = target.querySelector(".dm-detail");
-    d.textContent = (text || "") + (detail ? " — " + detail : "");
-  } else if(state === "error"){
-    stageState(target, "error");
-  }
+function setStageState(key, state, badge, detail) {
+  const card = $("stage-list").querySelector(`[data-key="${key}"]`);
+  if (!card) return;
+  card.classList.remove("running", "ok", "error");
+  if (state) card.classList.add(state);
+  if (badge != null) card.querySelector(".stage-badge span").textContent = badge;
+  if (detail != null) card.querySelector(".stage-detail").textContent = detail;
 }
 
-/* ---------- run ---------- */
-let elapsedStart = 0;
-let elapsedTimer = null;
-function startElapsed(){
+function getOrInsertSubCard(subKey) {
+  const list = $("stage-list");
+  let card = list.querySelector(`[data-key="exec-${subKey}"]`);
+  if (!card) {
+    const icons = { logistics: "🚚", security: "🔐", crm: "👤" };
+    card = makeStageCard("exec-" + subKey, icons[subKey] || "⌁", `Evidence · ${subKey}`, "", true);
+    // Insert before evaluate
+    const evalCard = list.querySelector('[data-key="evaluate"]');
+    if (evalCard) list.insertBefore(card, evalCard);
+    else list.appendChild(card);
+  }
+  return card;
+}
+
+function setSubState(subKey, state, badge, detail) {
+  getOrInsertSubCard(subKey); // ensure exists
+  const card = $("stage-list").querySelector(`[data-key="exec-${subKey}"]`);
+  if (!card) return;
+  card.classList.remove("running", "ok", "error");
+  if (state) card.classList.add(state);
+  if (badge != null) card.querySelector(".stage-badge span").textContent = badge;
+  if (detail != null) card.querySelector(".stage-detail").textContent = detail;
+}
+
+/* ── Log stream ── */
+function addLogEntry(stageKey, msg, kvPairs) {
+  const body = $("log-body");
+  const empty = body.querySelector(".log-empty");
+  if (empty) empty.remove();
+
+  logEventCount++;
+  $("log-count").textContent = `${logEventCount} event${logEventCount !== 1 ? "s" : ""}`;
+
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+
+  const kvsHtml = kvPairs
+    ? kvPairs.map(([k, v, cls]) =>
+        `<span class="kv-pair"><span class="kv-k">${k}</span><span class="kv-v ${cls || ""}">${v}</span></span>`
+      ).join("")
+    : "";
+
+  entry.innerHTML = `
+    <span class="log-time">${fmtTime()}</span>
+    <span class="log-stage ${stageKey}">${stageKey.toUpperCase()}</span>
+    <span class="log-msg">${msg}${kvsHtml}</span>`;
+  body.appendChild(entry);
+  body.scrollTop = body.scrollHeight;
+}
+
+/* ── Elapsed timer ── */
+function startElapsed() {
   elapsedStart = performance.now();
-  $("elapsed").textContent = "0s";
-  if(elapsedTimer) clearInterval(elapsedTimer);
-  elapsedTimer = setInterval(()=>{
-    $("elapsed").textContent = Math.round((performance.now()-elapsedStart)/1000)+"s";
+  const badge = $("elapsed-badge");
+  badge.style.display = "inline";
+  badge.textContent = "0s";
+  if (elapsedTimer) clearInterval(elapsedTimer);
+  elapsedTimer = setInterval(() => {
+    badge.textContent = Math.round((performance.now() - elapsedStart) / 1000) + "s";
   }, 250);
 }
-function stopElapsed(){
-  if(elapsedTimer){ clearInterval(elapsedTimer); elapsedTimer = null; }
-  $("elapsed").textContent = Math.round((performance.now()-elapsedStart)/1000)+"s";
+function stopElapsed() {
+  if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+  $("elapsed-badge").textContent = Math.round((performance.now() - elapsedStart) / 1000) + "s";
 }
-async function runPipeline(){
-  resetPipeline();
-  startElapsed();
+
+/* ── Status dot ── */
+function setDot(state) {
+  const d = $("status-dot");
+  d.classList.remove("active", "done", "error");
+  if (state) d.classList.add(state);
+}
+
+/* ── Reset ── */
+function resetUI() {
+  buildStageDom();
+  $("log-body").innerHTML = `<div class="log-empty">Events will appear here as each agent fires…</div>`;
+  $("result-wrap").innerHTML = "";
+  logEventCount = 0;
+  $("log-count").textContent = "0 events";
+  $("workspace").style.display = "grid";
+}
+
+/* ── SSE event handling ── */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function handleEvent(ev) {
+  switch (ev.stage) {
+    case "ingest":
+      addLogEntry("ingest", `Dispute <strong>${ev.text || "received"}</strong> — persisted to DB`);
+      setStageState("ingest", "running", "RUNNING", "Persisting dispute to database…");
+      await sleep(250);
+      setStageState("ingest", "ok", "DONE", "Dispute record created, FSM started");
+      break;
+
+    case "classify": {
+      addLogEntry("classify", `Classifying…`);
+      setStageState("classify", "running", "RUNNING", "TF-IDF vectorize → cosine similarity…");
+      await sleep(480);
+      const cls = ev.detail || ev.text || "";
+      addLogEntry("classify", `Class detected`, [
+        ["class", cls.match(/\b(fraud|non_receipt|service|policy)\b/i)?.[1] || cls, "val-ok"],
+        ["method", "TF-IDF embedding"],
+      ]);
+      setStageState("classify", "ok", "DONE", cls || "Classification complete");
+      break;
+    }
+
+    case "executor": {
+      const m = (ev.text || "").match(/\b(logistics|security|crm)\b/i);
+      const sub = m ? m[1].toLowerCase() : "executor";
+      setSubState(sub, "running", "RUNNING", "Fetching evidence…");
+      await sleep(380);
+      const detail = ev.detail || "Evidence collected";
+      const strength = detail.match(/STRONG|MODERATE|WEAK|TIMEOUT/i)?.[0] || "";
+      const cls = strength === "STRONG" ? "val-ok" : strength === "TIMEOUT" ? "val-err" : "val-warn";
+      addLogEntry("executor", `<strong>${sub}</strong> executor`, [
+        ["strength", strength || "OK", cls],
+        ["src", sub === "logistics" ? "delhivery" : sub === "security" ? "razorpay_payment" : "shopify"],
+      ]);
+      setSubState(sub, "ok", strength || "DONE", detail);
+      break;
+    }
+
+    case "evaluate": {
+      setStageState("evaluate", "running", "RUNNING", "LightGBM inference…");
+      addLogEntry("evaluate", "Evaluating with LightGBM…");
+      await sleep(500);
+      const detail = ev.detail || ev.text || "";
+      const confM = detail.match(/[\d.]+/);
+      const conf = confM ? parseFloat(confM[0]) : null;
+      const decM = detail.match(/\b(CONTEST|RECOMMEND_ACCEPT|HUMAN_REVIEW)\b/i);
+      const dec = decM ? decM[1] : null;
+      const kvs = [];
+      if (conf != null) kvs.push(["confidence", (conf * 100).toFixed(0) + "%", conf >= 0.7 ? "val-ok" : "val-warn"]);
+      if (dec) kvs.push(["decision", dec, dec === "CONTEST" ? "val-ok" : dec === "RECOMMEND_ACCEPT" ? "val-warn" : "val-err"]);
+      addLogEntry("evaluate", "Decision reached", kvs);
+      setStageState("evaluate", "ok", dec || "DONE", detail);
+      break;
+    }
+
+    case "compile": {
+      setStageState("compile", "running", "RUNNING", "Building rebuttal PDF…");
+      addLogEntry("compile", "Compiling evidence exhibits…");
+      await sleep(400);
+      addLogEntry("compile", "Rebuttal PDF generated", [["exhibits", "A · B · C · D", "val-ok"]]);
+      setStageState("compile", "ok", "DONE", "Rebuttal PDF ready");
+      break;
+    }
+
+    case "done":
+      setStageState("done", "ok", "DONE", "Audit chain sealed");
+      addLogEntry("done", "Pipeline complete — dispute persisted with hash-chained audit trail", [["chain", "INTACT ✓", "val-ok"]]);
+      setDot("done");
+      stopElapsed();
+      await sleep(300);
+      renderResult(ev.dispute);
+      break;
+
+    case "error":
+      setStageState("evaluate", "error", "ERROR");
+      addLogEntry("error", ev.text || "Pipeline error — routed to human review", [["status", "ERROR", "val-err"]]);
+      setDot("error");
+      $("run-status").textContent = "Error — routed to human review";
+      stopElapsed();
+      break;
+  }
+}
+
+/* ── Render result card ── */
+function renderResult(d) {
+  if (!d) return;
+  const dec = (d.decision || "").toUpperCase();
+  const decClass = dec === "CONTEST" ? "contest" : dec === "RECOMMEND_ACCEPT" ? "recommend_accept" : "human_review";
+  const decLabel = dec === "CONTEST" ? "✓ REBUTTAL FILED" : dec === "RECOMMEND_ACCEPT" ? "⚑ ACCEPT RECOMMENDED" : "⚠ HUMAN REVIEW";
+  const confPct = Math.round((d.confidence || 0) * 100);
+  const confColor = confPct >= 70 ? "#34d399" : confPct >= 50 ? "#fbbf24" : "#f87171";
+
+  const wrap = $("result-wrap");
+  wrap.innerHTML = `
+    <div class="result-card decision-${decClass}">
+      <div>
+        <div class="result-title">Pipeline result</div>
+        <div class="result-decision ${decClass}">${decLabel}</div>
+        <dl class="result-kv">
+          <dt>Dispute ID</dt><dd style="font-family:'JetBrains Mono',monospace;font-size:12px">${d.dispute_id || "—"}</dd>
+          <dt>Reason code</dt><dd>${d.reason_code || "—"}</dd>
+          <dt>Dispute class</dt><dd>${d.class || "—"}</dd>
+          <dt>Amount</dt><dd>₹${(d.amount_rs || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</dd>
+        </dl>
+        <div class="conf-meter">
+          <div class="conf-track"><div class="conf-fill" id="conf-fill" style="width:0%;background:${confColor}"></div></div>
+          <span class="conf-pct" style="color:${confColor}">${confPct}%</span>
+        </div>
+        <div style="font-size:12px;color:#4b5e7a;margin-top:6px">Fight confidence</div>
+      </div>
+      <div class="result-actions">
+        <a class="btn-dashboard" href="/app">Open in dashboard →</a>
+        <div class="btn-again" id="run-again">↺ Run again</div>
+        <div class="keyboard-hint">or press <kbd>Space</kbd></div>
+      </div>
+    </div>`;
+
+  // Animate confidence bar
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      $("conf-fill").style.width = confPct + "%";
+    });
+  });
+
+  $("run-again").onclick = () => runPipeline();
+  $("run-btn").disabled = false;
+}
+
+/* ── Main pipeline runner ── */
+async function runPipeline() {
+  resetUI();
+  setDot("active");
   $("run-btn").disabled = true;
+  $("run-status").textContent = "Pipeline running…";
+  startElapsed();
+
   const reason = $("reason").value;
-  const amountRs = Math.max(10, parseInt($("amount").value||"1250",10));
-  const amount = amountRs * 100; // paise
+  const amountPaise = Math.max(10, parseInt($("amount").value || "1250", 10)) * 100;
 
   try {
     const res = await fetch("/api/demo/simulate", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ reason_code: reason, amount }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason_code: reason, amount: amountPaise }),
     });
-    if(!res.ok || !res.body){
+
+    if (!res.ok || !res.body) {
       $("run-status").textContent = `Failed (${res.status})`;
+      setDot("error");
       $("run-btn").disabled = false;
+      stopElapsed();
       return;
     }
 
@@ -193,89 +312,45 @@ async function runPipeline(){
     const dec = new TextDecoder();
     let buf = "";
     let done = false;
-    while(!done){
+
+    while (!done) {
       const { value, done: d } = await reader.read();
       done = d;
-      buf += dec.decode(value || new Uint8Array(), {stream: !done});
+      buf += dec.decode(value || new Uint8Array(), { stream: !done });
       let idx;
-      while((idx = buf.indexOf("\n\n")) >= 0){
-        const chunk = buf.slice(0, idx); buf = buf.slice(idx+2);
-        if(!chunk.startsWith("data: ")) continue;
-        let ev; try { ev = JSON.parse(chunk.slice(6)); } catch(_){ continue; }
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        if (!chunk.startsWith("data: ")) continue;
+        let ev; try { ev = JSON.parse(chunk.slice(6)); } catch (_) { continue; }
         await handleEvent(ev);
       }
     }
-    $("run-status").textContent = "Complete";
-  } catch(e){
-    $("run-status").textContent = "Error: "+e.message;
+
+    if ($("run-status").textContent === "Pipeline running…") {
+      $("run-status").textContent = "Complete";
+    }
+  } catch (e) {
+    $("run-status").textContent = "Error: " + e.message;
+    setDot("error");
+    stopElapsed();
   } finally {
     $("run-btn").disabled = false;
   }
 }
 
-async function handleEvent(ev){
-  switch(ev.stage){
-    case "ingest":
-      await markStage("ingest","running", ev.text);
-      await sleep(260);
-      await markStage("ingest","ok", ev.text);
-      break;
-    case "classify":
-      await markStage("classify","running", ev.text);
-      await sleep(500);
-      await markStage("classify","ok", ev.text, ev.detail);
-      break;
-    case "executor":
-      const subLabel = (ev.text && ev.text.match(/\b(logistics|security|crm)\b/) || [,"executor"])[1];
-      await markStage("executor","running", subLabel, ev.detail);
-      await sleep(420);
-      await markStage("executor","ok", subLabel, ev.detail);
-      break;
-    case "evaluate":
-      await markStage("evaluate","running", ev.text);
-      await sleep(550);
-      await markStage("evaluate","ok", ev.text, ev.detail);
-      break;
-    case "compile":
-      await markStage("compile","running", ev.text);
-      await sleep(400);
-      await markStage("compile","ok", ev.text);
-      break;
-    case "done":
-      await markStage("done","ok", null, "Audit chain intact");
-      await sleep(300);
-      renderResult(ev.dispute);
-      break;
-    case "error":
-      await markStage("evaluate","error", ev.text);
-      $("run-status").textContent = "Pipeline failed";
-      break;
-  }
-}
-
-function renderResult(d){
-  $("result-card").innerHTML = `
-    <div class="card">
-      <div class="card-head"><h2>Result — persistence verified</h2><span class="badge b-a">${d.decision}</span></div>
-      <div class="drawer">
-        <div class="kv" style="margin-top:16px">
-          <dt>Dispute ID</dt><dd class="mono">${d.dispute_id}</dd>
-          <dt>Reason code</dt><dd>${d.reason_code}</dd>
-          <dt>Class</dt><dd>${d.class}</dd>
-          <dt>Decision</dt><dd>${d.decision} (conf ${(d.confidence*100).toFixed(0)}%)</dd>
-          <dt>Amount</dt><dd>₹${d.amount_rs.toLocaleString("en-IN", {maximumFractionDigits:0})}</dd>
-        </div>
-        <div style="margin-top:var(--space-5)">
-          <a class="btn primary" href="/app">Open in dashboard →</a>
-          <span class="note" style="margin-left:var(--space-3);color:var(--ink-300);font-size:12.5px">This dispute now appears in your real dashboard with a hash-chained audit trail</span>
-        </div>
-      </div>
-    </div>`;
-  stopElapsed();
-}
-
-/* ---------- wire up ---------- */
+/* ── Wire events ── */
 $("run-btn").addEventListener("click", runPipeline);
-$("logout-btn").addEventListener("click", async ()=>{ await fetch("/auth/logout",{method:"POST",headers:{"Content-Type":"application/json"}}); location.href="/login"; });
+$("logout-btn").addEventListener("click", async () => {
+  await fetch("/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" } });
+  location.href = "/login";
+});
+
+// Keyboard shortcut: Space = run
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && e.target === document.body) {
+    e.preventDefault();
+    if (!$("run-btn").disabled) runPipeline();
+  }
+});
 
 initAuth();

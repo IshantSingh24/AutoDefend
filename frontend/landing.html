@@ -7,13 +7,122 @@
   <meta name="description" content="AutoDefend autonomously defends every chargeback — collecting evidence, evaluating win probability, and filing bank-compliant rebuttals before the deadline." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700;800&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/styles.css" />
+  <style>
+    /* ── Landing page specific overrides ── */
+    body.landing { background: #f6f7fb; }
+
+    /* ── Full-dark hero ── */
+    .hero { background: #0e1424; }
+    .hero-bg { display: none; }
+    .hero-inner { padding: 92px var(--space-5) 104px; }
+    .hero-copy { color: #e8eeff; }
+    .hero-eyebrow { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.12); color: #9db0e0; }
+    .hero-title { color: #fff; }
+    .hero-title .grad { background: linear-gradient(92deg, #6ea0ff 0%, #4d86ff 55%, #a78bfa 110%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .hero-sub { color: #8ea3d6; }
+    .btn-ghost-hero { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); color: #e8eeff; border-radius: 10px; font-weight: 600; padding: 14px 22px; font-size: 15px; transition: background .2s; text-decoration: none; display: inline-flex; align-items: center; }
+    .btn-ghost-hero:hover { background: rgba(255,255,255,.14); }
+    .hero-proof { margin-top: 44px; gap: 36px; }
+    .hero-proof span { display: flex; flex-direction: column; }
+    .hero-proof b { color: #fff; font-size: 26px; }
+    .hero-proof span > *:last-child { font-size: 13px; color: #8ea3d6; margin-top: 2px; }
+
+    /* Canvas grid overlay in hero */
+    .hero-canvas-wrap { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
+    #hero-canvas { width: 100%; height: 100%; opacity: .35; }
+
+    /* Grid dots pattern */
+    .hero-bg-grid {
+      position: absolute; inset: 0; z-index: 0;
+      background-image: radial-gradient(circle, rgba(100,150,255,.18) 1px, transparent 1px);
+      background-size: 32px 32px;
+      -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 100%);
+      mask-image: radial-gradient(ellipse 90% 80% at 50% 50%, black 40%, transparent 100%);
+    }
+
+    /* Glow orbs */
+    .hero-orb {
+      position: absolute; border-radius: 50%; filter: blur(80px); z-index: 0; pointer-events: none;
+    }
+    .hero-orb-1 { width: 600px; height: 600px; right: -80px; top: -160px; background: radial-gradient(circle, rgba(48,94,255,.28), transparent 70%); animation: floaty 14s ease-in-out infinite; }
+    .hero-orb-2 { width: 400px; height: 400px; left: -100px; bottom: -120px; background: radial-gradient(circle, rgba(124,58,237,.2), transparent 70%); animation: floaty 18s ease-in-out infinite reverse; }
+    @keyframes floaty { 0%,100%{transform:translate(0,0)}50%{transform:translate(28px,-22px)} }
+
+    /* Ticker banner */
+    .ticker-banner {
+      background: #111827; border-bottom: 1px solid rgba(255,255,255,.06);
+      overflow: hidden; white-space: nowrap;
+    }
+    .ticker-inner {
+      display: inline-flex; gap: 64px; padding: 12px 0;
+      animation: ticker 22s linear infinite;
+    }
+    .ticker-item { font-size: 12.5px; color: #6a80b0; display: flex; align-items: center; gap: 8px; }
+    .ticker-item span { color: #34d399; font-weight: 700; }
+    @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+
+    /* Logo strip upgrade */
+    .logo-strip { background: #fff; }
+    .logo-svg { font-size: 15px !important; font-weight: 800 !important; letter-spacing: -.01em !important; color: #c9d3e4 !important; }
+
+    /* Feature section alt dark */
+    .section.alt { background: #fff; }
+
+    /* How it works: numbered badges */
+    .step-num {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--accent-soft); color: var(--accent);
+      display: grid; place-items: center;
+      font-family: ui-monospace, monospace;
+      font-size: 11.5px; font-weight: 700; flex-shrink: 0;
+    }
+    .step { align-items: flex-start; }
+
+    /* Live demo CTA */
+    .band-card { overflow: hidden; }
+
+    /* Upgrade nav hit areas */
+    .land-nav-inner { padding: 13px var(--space-5); }
+    .land-links a { padding: 8px 12px; border-radius: 7px; border-bottom: none; font-size: 14.5px; }
+    .land-links a:hover { background: rgba(0,0,0,.05); color: var(--ink-900); border-bottom: none; }
+    .land-actions a { font-size: 14.5px; }
+    .btn.ghost { font-weight: 600; }
+    .btn.primary { font-weight: 700; }
+
+    /* Footer column links */
+    .land-footer .footer-col a { padding: 5px 0; font-size: 14px; }
+  </style>
 </head>
 <body class="landing">
 
-  <!-- ===================== TOP NAV ===================== -->
+  <!-- =================== TICKER =================== -->
+  <div class="ticker-banner">
+    <div class="ticker-inner">
+      <span class="ticker-item">⚡ Dispute detected <span>VISA_10_4</span></span>
+      <span class="ticker-item">◈ TF-IDF classified → <span>fraud</span></span>
+      <span class="ticker-item">🔐 3DS auth <span>PASSED</span></span>
+      <span class="ticker-item">▤ fight_confidence <span>0.92</span></span>
+      <span class="ticker-item">📄 Rebuttal PDF <span>FILED</span></span>
+      <span class="ticker-item">✓ Audit chain <span>INTACT</span></span>
+      <span class="ticker-item">⚡ Dispute detected <span>MC_4853</span></span>
+      <span class="ticker-item">◈ TF-IDF classified → <span>service</span></span>
+      <span class="ticker-item">🚚 Delivery status <span>DELIVERED</span></span>
+      <span class="ticker-item">▤ fight_confidence <span>0.84</span></span>
+      <span class="ticker-item">📄 Rebuttal PDF <span>FILED</span></span>
+      <span class="ticker-item">✓ Audit chain <span>INTACT</span></span>
+      <!-- duplicate for seamless loop -->
+      <span class="ticker-item">⚡ Dispute detected <span>VISA_10_4</span></span>
+      <span class="ticker-item">◈ TF-IDF classified → <span>fraud</span></span>
+      <span class="ticker-item">🔐 3DS auth <span>PASSED</span></span>
+      <span class="ticker-item">▤ fight_confidence <span>0.92</span></span>
+      <span class="ticker-item">📄 Rebuttal PDF <span>FILED</span></span>
+      <span class="ticker-item">✓ Audit chain <span>INTACT</span></span>
+    </div>
+  </div>
+
+  <!-- =================== TOP NAV =================== -->
   <header class="land-nav" id="top">
     <div class="land-nav-inner">
       <a class="brand" href="#top"><span class="brand-mark">A</span> AutoDefend</a>
@@ -25,19 +134,24 @@
       </nav>
       <div class="land-actions">
         <a class="btn ghost" href="/login">Sign in</a>
-        <a class="btn primary" href="/login">Get started</a>
+        <a class="btn primary" href="/login">Get started →</a>
       </div>
     </div>
   </header>
 
-  <!-- ===================== HERO ===================== -->
+  <!-- =================== HERO =================== -->
   <section class="hero" id="hero">
-    <div class="hero-bg" aria-hidden="true"></div>
-    <div class="hero-inner">
+    <!-- dark bg decorators -->
+    <div class="hero-bg-grid" aria-hidden="true"></div>
+    <div class="hero-orb hero-orb-1" aria-hidden="true"></div>
+    <div class="hero-orb hero-orb-2" aria-hidden="true"></div>
+
+    <div class="hero-inner" style="position:relative;z-index:1">
       <div class="hero-grid">
         <div class="hero-copy">
           <div class="hero-eyebrow">
-            <span class="pulse-dot"></span> Live agent · FSM + ML, no LLM in the critical path
+            <span class="pulse-dot"></span>
+            Agentic FSM + LightGBM — no LLM in the financial path
           </div>
           <h1 class="hero-title">
             Every chargeback,<br />
@@ -45,138 +159,141 @@
           </h1>
           <p class="hero-sub">
             AutoDefend intercepts every dispute the moment it lands, gathers the
-            right evidence, scores how winnable it is, and files a bank-compliant
-            rebuttal — before the deadline even starts ticking.
+            right evidence in parallel, scores how winnable it is, and files a
+            bank-compliant rebuttal — before the deadline even starts ticking.
           </p>
           <div class="hero-cta">
-            <a class="btn primary lg" href="/login">Try the live demo</a>
-            <a class="btn ghost lg" href="#how">See how it works</a>
+            <a class="btn primary lg" href="/demo">Try the live demo</a>
+            <a class="btn-ghost-hero" href="#how">See how it works →</a>
           </div>
           <div class="hero-proof">
-            <span><b>99.2%</b> On-time filings</span>
-            <span><b class="accent">+38%</b> More disputes won</span>
-            <span><b>0</b>.4s to decide</span>
+            <span><b>99.2%</b>On-time filings</span>
+            <span><b class="accent">+38%</b>More disputes won</span>
+            <span><b>0.4s</b>To decide</span>
+            <span><b>100%</b>Audit verified</span>
           </div>
         </div>
 
-        <!-- Animated pipeline preview -->
+        <!-- Animated pipeline preview card -->
         <div class="hero-visual">
           <div class="pl-card">
             <div class="pl-head">
-              <span>Razorpay · pending webhook</span>
-              <span class="badge b-p">LIVE</span>
+              <span>AutoDefend · live pipeline</span>
+              <span class="badge b-p" style="background:rgba(22,163,74,.15);color:#34d399">● RUNNING</span>
             </div>
             <div class="pl-rail">
               <div class="pl-line" id="plLine"></div>
               <div class="pl-ball" id="plBall"></div>
-              <div class="pl-step" data-key="ingest"><span class="pl-dot"></span><span class="pl-t">Ingest</span><span class="pl-s">dispute#pay_1234</span></div>
-              <div class="pl-step" data-key="classify"><span class="pl-dot"></span><span class="pl-t">Classify</span><span class="pl-s">TF-IDF → non_receipt</span></div>
-              <div class="pl-step" data-key="executor"><span class="pl-dot"></span><span class="pl-t">Evidence</span><span class="pl-s">logistics · security · crm</span></div>
-              <div class="pl-step" data-key="evaluate"><span class="pl-dot"></span><span class="pl-t">Evaluate</span><span class="pl-s">win-prob 0.92 → CONTEST</span></div>
-              <div class="pl-step" data-key="compile"><span class="pl-dot"></span><span class="pl-t">Compile</span><span class="pl-s">rebuttal queued for filing</span></div>
+              <div class="pl-step" data-key="ingest"><span class="pl-dot"></span><span class="pl-t">Ingest</span><span class="pl-s">dispute#pay_1234 · VISA_10_4</span></div>
+              <div class="pl-step" data-key="classify"><span class="pl-dot"></span><span class="pl-t">Classify</span><span class="pl-s">TF-IDF → fraud (conf 0.80)</span></div>
+              <div class="pl-step" data-key="executor"><span class="pl-dot"></span><span class="pl-t">Evidence</span><span class="pl-s">security · crm — parallel</span></div>
+              <div class="pl-step" data-key="evaluate"><span class="pl-dot"></span><span class="pl-t">Evaluate</span><span class="pl-s">LightGBM → 0.92 → CONTEST</span></div>
+              <div class="pl-step" data-key="compile"><span class="pl-dot"></span><span class="pl-t">Compile</span><span class="pl-s">3DS + CVV + CRM exhibits → PDF</span></div>
             </div>
             <div class="pl-status" id="plStatus">Ready — awaiting dispute</div>
           </div>
         </div>
       </div>
     </div>
+
     <div class="scroll-cue"><span></span></div>
   </section>
 
-  <!-- ===================== LOGO STRIP ===================== -->
+  <!-- =================== LOGO STRIP =================== -->
   <section class="logo-strip">
     <div class="strip-inner">
-      <span class="strip-label">Trusted on the rails teams already move money on</span>
+      <span class="strip-label">Works on the rails merchants already move money on</span>
       <div class="strip-logos" aria-hidden="true">
-        <span class="logo-svg lg">□ checkout</span>
-        <span class="logo-svg">◆ route</span>
-        <span class="logo-svg">● order</span>
-        <span class="logo-svg">▲ settle</span>
-        <span class="logo-svg">▣ payu</span>
+        <span class="logo-svg lg">VISA</span>
+        <span class="logo-svg">Mastercard</span>
+        <span class="logo-svg">RuPay</span>
+        <span class="logo-svg">UPI</span>
+        <span class="logo-svg">Delhivery</span>
+        <span class="logo-svg">Shopify</span>
       </div>
     </div>
   </section>
 
-  <!-- ===================== HOW IT WORKS ===================== -->
+  <!-- =================== HOW IT WORKS =================== -->
   <section class="section" id="how">
     <div class="section-head reveal">
       <span class="kicker">How it works</span>
       <h2>From dispute to decision in under a second</h2>
-      <p class="lead">No overnight batch jobs, no fragile prompt chains. A deterministic state machine drives each case through a pipeline of specialised executors.</p>
+      <p class="lead">No overnight batch jobs, no fragile prompt chains. A deterministic LangGraph state machine drives each case through a pipeline of specialised executors.</p>
     </div>
-    <div class="steps">
+    <div class="steps" style="max-width:1200px;margin:0 auto">
       <div class="step reveal">
         <span class="step-num">01</span>
-        <div class="step-card">
+        <div class="step-card" style="flex:1">
           <h3>Ingest any reason code</h3>
-          <p>Webhooks for card, UPI and wallet networks. The moment a dispute lands, a case is opened with a full audit trail from frame zero.</p>
+          <p>Webhook arrives — HMAC-SHA256 verified, dispute record created, FSM launched as a background task. HTTP 200 returned in under 5s.</p>
         </div>
       </div>
       <div class="step reveal">
         <span class="step-num">02</span>
-        <div class="step-card">
-          <h3>Classify the claim</h3>
-          <p>A TF-IDF embedding maps free-text reason codes to dispute classes — fraud, non-receipt, service. Fast enough to act in milliseconds.</p>
+        <div class="step-card" style="flex:1">
+          <h3>Classify in 5ms, $0</h3>
+          <p>TF-IDF cosine similarity maps any reason code to 4 semantic families — fraud, non-receipt, service, policy. No API call, no rate limit, no prompt drift.</p>
         </div>
       </div>
       <div class="step reveal">
         <span class="step-num">03</span>
-        <div class="step-card">
-          <h3>Gather the evidence</h3>
-          <p>Dedicated executors pull delivery logs, 3-D Secure results, device and CRM history in parallel — then rate how strong each piece is.</p>
+        <div class="step-card" style="flex:1">
+          <h3>Gather in parallel</h3>
+          <p>Logistics, security, and CRM executors fire concurrently via asyncio. API timeouts always route to human review — never hallucinate evidence.</p>
         </div>
       </div>
       <div class="step reveal">
         <span class="step-num">04</span>
-        <div class="step-card">
+        <div class="step-card" style="flex:1">
           <h3>Fight or accept, honestly</h3>
-          <p>A score decides whether we contest or recommend acceptance. When confidence clears the threshold, a bank-compliant rebuttal is filed automatically.</p>
+          <p>LightGBM returns a calibrated fight_confidence. Below threshold → accept. Above → compile rebuttal PDF with only verified evidence. High-value always goes to a human.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ===================== FEATURES ===================== -->
+  <!-- =================== FEATURES =================== -->
   <section class="section alt" id="features">
     <div class="section-head reveal">
       <span class="kicker">Why teams pick AutoDefend</span>
       <h2>Built like a control room, not a demo</h2>
     </div>
-    <div class="feature-grid">
+    <div class="feature-grid" style="max-width:1200px;margin:0 auto">
       <div class="feature reveal">
         <span class="feat-ic">◈</span>
         <h3>Deterministic, auditable</h3>
-        <p>Every step is a hash-chained event you can verify end to end — including who decided what and when.</p>
+        <p>Every step is a SHA-256 hash-chained event — you can verify the entire decision trail end to end, including who decided what and when.</p>
       </div>
       <div class="feature reveal">
-        <span class="feat-ic">⌁</span>
+        <span class="feat-ic">⏱</span>
         <h3>Always on time</h3>
-        <p>Filings are queued against each bank's deadline automatically. The response window never catches you off guard.</p>
+        <p>Filings queued against Visa / MC / UPI deadlines automatically. 72-hour chargebacks, 48-hour pre-arbitration, 24-hour arbitration — handled.</p>
       </div>
       <div class="feature reveal">
         <span class="feat-ic">▤</span>
         <h3>Honest about false positives</h3>
-        <p>Over-filing loses money too. We surface the real cost of disputes we contest and lose, so you know what defence is worth.</p>
+        <p>Over-filing loses money too. The dashboard surfaces the real cost of disputes we contested and lost so you know exactly what defence is worth.</p>
       </div>
       <div class="feature reveal">
-        <span class="feat-ic">⚭</span>
+        <span class="feat-ic">👤</span>
         <h3>Human in the loop</h3>
-        <p>Low-confidence cases go to a review queue with everything an operator needs to make the call — never silently misfiled.</p>
+        <p>Low-confidence cases, API timeouts, and high-value disputes go to a review queue with everything an operator needs to make the call.</p>
       </div>
       <div class="feature reveal">
         <span class="feat-ic">≋</span>
         <h3>Multi-network by design</h3>
-        <p>Card networks, UPI, wallets — one pipeline, one console, shared evidence collectors and a single source of truth.</p>
+        <p>Visa, Mastercard, RuPay, UPI, wallets — one pipeline, one console, shared evidence collectors and a single source of truth.</p>
       </div>
       <div class="feature reveal">
         <span class="feat-ic">⌀</span>
         <h3>No black-box prompts</h3>
-        <p>Our classifiers and evaluators are lightweight ML you can test and version. No prompt drift, no surprise API bills.</p>
+        <p>Classifiers and evaluators are versioned, tested ML models. No prompt drift, no surprise API bills, no hallucinated evidence in your rebuttal.</p>
       </div>
     </div>
   </section>
 
-  <!-- ===================== METRICS ===================== -->
+  <!-- =================== METRICS =================== -->
   <section class="section metrics" id="metrics">
     <div class="section-head reveal">
       <span class="kicker">Why it works</span>
@@ -190,27 +307,30 @@
     </div>
   </section>
 
-  <!-- ===================== LIVE DEMO CTA ===================== -->
+  <!-- =================== LIVE DEMO CTA =================== -->
   <section class="section demo-band" id="demo">
     <div class="band-card reveal">
       <div>
         <span class="kicker light">See it running</span>
         <h2>Watch a live dispute move through the pipeline</h2>
-        <p>Pick a reason code, hit run, and follow the ball as AutoDefend classifies, gathers evidence and compiles a rebuttal — in real time.</p>
+        <p>Pick a reason code, hit run, and follow every agent firing in real time — classification, evidence, evaluation, compilation. All with a live event log.</p>
       </div>
-      <a class="btn primary lg" href="/demo">Open the live demo →</a>
+      <a class="btn primary lg" href="/demo" style="background:#fff;color:#15203c;flex-shrink:0">Open the live demo →</a>
     </div>
   </section>
 
-  <!-- ===================== FOOTER ===================== -->
+  <!-- =================== FOOTER =================== -->
   <footer class="land-footer">
     <div class="footer-grid">
-      <div class="brand"><span class="brand-mark">A</span> AutoDefend</div>
+      <div>
+        <div class="brand" style="color:#fff;margin-bottom:12px"><span class="brand-mark">A</span> AutoDefend</div>
+        <p style="color:#8ea3d6;font-size:13.5px;max-width:26ch;line-height:1.6;margin:0">Autonomous chargeback defence with a verifiable, tamper-evident audit trail.</p>
+      </div>
       <div class="footer-col"><h4>Product</h4><a href="#how">How it works</a><a href="#features">Features</a><a href="#demo">Live demo</a></div>
-      <div class="footer-col"><h4>Console</h4><a href="/app">Dashboard</a><a href="/login">Sign in</a></div>
+      <div class="footer-col"><h4>Console</h4><a href="/app">Dashboard</a><a href="/login">Sign in</a><a href="/login">Register</a></div>
       <div class="footer-col"><h4>Legal</h4><a href="#">Privacy</a><a href="#">Terms</a></div>
     </div>
-    <div class="footer-base">© 2026 AutoDefend · Autonomous chargeback defense with a verifiable audit trail</div>
+    <div class="footer-base">© 2026 AutoDefend · Razorpay Hackathon · Autonomous chargeback defense with a verifiable audit trail</div>
   </footer>
 
   <script src="/static/landing.js"></script>
