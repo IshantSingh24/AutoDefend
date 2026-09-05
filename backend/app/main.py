@@ -67,10 +67,21 @@ app.include_router(dashboard_router, prefix="/api", tags=["Dashboard"])
 app.include_router(demo_router, prefix="/api", tags=["Demo"])   # /api/demo/simulate (SSE)
 
 # ── Frontend static assets ─────────────────────────────────
-backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-frontend_dir = os.path.join(os.path.dirname(backend_dir), "frontend")
-if os.path.isdir(frontend_dir):
-    app.mount("/static", StaticFiles(directory=os.path.join(frontend_dir)), name="static")
+# Try multiple candidate paths — works regardless of launch directory
+_this_file = os.path.abspath(__file__)                              # .../backend/app/main.py
+_app_dir   = os.path.dirname(_this_file)                           # .../backend/app
+_backend_dir = os.path.dirname(_app_dir)                           # .../backend
+_project_dir = os.path.dirname(_backend_dir)                       # .../RazorPay_hack
+_frontend_candidates = [
+    os.path.join(_project_dir, "frontend"),                        # standard layout
+    os.path.join(_backend_dir, "..", "frontend"),                   # relative fallback
+    os.path.join(os.getcwd(), "frontend"),                          # cwd-relative
+    os.path.join(os.getcwd(), "..", "frontend"),                    # one level up from cwd
+]
+frontend_dir = next((p for p in _frontend_candidates if os.path.isdir(p)), None)
+logger.info("Frontend dir resolved: %s", frontend_dir)
+if frontend_dir and os.path.isdir(frontend_dir):
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
     # Public pages
     @app.get("/", include_in_schema=False)
